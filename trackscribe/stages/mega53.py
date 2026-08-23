@@ -57,7 +57,7 @@ def separate(
                 "--output_format",
                 parameters["output_format"],
             ]
-            services.run_command(SEPARATION_STAGE, command)
+            services.run_command(SEPARATION_STAGE, command, python_utf8=True)
             raw_outputs = sorted(raw_dir.glob("other_*.wav"))
             expected = int(parameters["expected_stems"])
             if len(raw_outputs) != expected:
@@ -106,7 +106,7 @@ def analyze(
             "--settings-json",
             json.dumps(parameters),
         ]
-        services.run_command(ANALYSIS_STAGE, command)
+        services.run_command(ANALYSIS_STAGE, command, python_utf8=True)
         report = json.loads(output_json.read_text(encoding="utf-8"))
         return StageOutcome(
             outputs={

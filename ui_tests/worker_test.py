@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -129,6 +131,33 @@ class WorkerTest(unittest.TestCase):
         self.assertIn("--no-bass", command)
         self.assertIn("--harmony", command)
         self.assertIn("--no-vocals", command)
+
+    def test_reaper_python_bridge_uses_utf8_child_environment(self) -> None:
+        worker = ReaperWorker(
+            ReaperJob(
+                Path("project"),
+                Path("reaper.exe"),
+                drums=True,
+                bass=True,
+                harmony=True,
+                vocals=True,
+            )
+        )
+        completed: list[object] = []
+        worker.completed.connect(completed.append)
+        result = SimpleNamespace(
+            returncode=0,
+            stdout='{"type": "dispatched"}\n',
+            stderr="",
+        )
+        with patch(
+            "trackscribe.ui.reaper_worker.subprocess.run", return_value=result
+        ) as run:
+            worker.run()
+        self.assertEqual(len(completed), 1)
+        environment = run.call_args.kwargs["env"]
+        self.assertEqual(environment["PYTHONUTF8"], "1")
+        self.assertEqual(environment["PYTHONIOENCODING"], "utf-8")
 
 
 if __name__ == "__main__":

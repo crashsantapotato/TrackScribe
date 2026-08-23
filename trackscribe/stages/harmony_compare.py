@@ -52,7 +52,7 @@ def export(
             "--amt-seconds",
             str(processing_seconds["agnostic-amt"]),
         ]
-        services.run_command(STAGE, command)
+        services.run_command(STAGE, command, python_utf8=True)
         report = json.loads(diagnostics.read_text(encoding="utf-8"))
         return StageOutcome(
             outputs={

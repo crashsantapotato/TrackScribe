@@ -27,11 +27,15 @@ class LauncherTest(unittest.TestCase):
                 patch.object(ui.sys, "argv", ["ui.py"]),
             ):
                 self.assertEqual(ui.main(), 0)
-            popen.assert_called_once_with(
-                [str(pythonw), str(Path(ui.__file__).resolve())],
-                cwd=str(root),
-                close_fds=True,
+            popen.assert_called_once()
+            args, kwargs = popen.call_args
+            self.assertEqual(
+                args[0], [str(pythonw), str(Path(ui.__file__).resolve())]
             )
+            self.assertEqual(kwargs["cwd"], str(root))
+            self.assertTrue(kwargs["close_fds"])
+            self.assertEqual(kwargs["env"]["PYTHONUTF8"], "1")
+            self.assertEqual(kwargs["env"]["PYTHONIOENCODING"], "utf-8")
 
     def test_missing_environment_shows_actionable_message(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

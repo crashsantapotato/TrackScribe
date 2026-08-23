@@ -86,7 +86,10 @@ class HarmonyStageTests(unittest.TestCase):
         )
         services = SimpleNamespace(config=config, layout=layout, executor=executor)
 
-        def run_command(_stage: str, command: list[str]) -> None:
+        def run_command(
+            _stage: str, command: list[str], *, python_utf8: bool = False
+        ) -> None:
+            self.assertTrue(python_utf8)
             Path(command[5]).write_bytes(b"clean")
             report = {
                 "input_notes": 12,

@@ -9,6 +9,8 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal, Slot
 
+from trackscribe.process import build_python_utf8_env
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CORE_PYTHON = PROJECT_ROOT / ".venv" / "Scripts" / "python.exe"
@@ -65,6 +67,7 @@ class ReaperWorker(QObject):
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                env=build_python_utf8_env(),
                 shell=False,
                 check=False,
             )

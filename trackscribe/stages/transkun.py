@@ -45,7 +45,7 @@ def transcribe(
             command.extend(["--segmentSize", str(parameters["segment_size"])])
         if parameters.get("segment_hop_size") is not None:
             command.extend(["--segmentHopSize", str(parameters["segment_hop_size"])])
-        services.run_command(stage, command)
+        services.run_command(stage, command, python_utf8=True)
         return StageOutcome(outputs={output_key: output}, command=command)
 
     return services.executor.execute(

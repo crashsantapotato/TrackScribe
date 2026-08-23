@@ -34,7 +34,7 @@ def transcribe(services: StageServices, drums_wav: Path) -> StageOutcome:
         ]
         if parameters.get("thresholds"):
             command.extend(["--thresholds", parameters["thresholds"]])
-        services.run_command(TRANSCRIBE_STAGE, command)
+        services.run_command(TRANSCRIBE_STAGE, command, python_utf8=True)
         return StageOutcome(outputs={"intermediate.drums_midi": raw_midi}, command=command)
 
     return services.executor.execute(
@@ -72,7 +72,7 @@ def add_velocity(
             "--gamma",
             str(parameters["gamma"]),
         ]
-        services.run_command(VELOCITY_STAGE, command)
+        services.run_command(VELOCITY_STAGE, command, python_utf8=True)
         return StageOutcome(outputs={"midi.drums": output}, command=command)
 
     return services.executor.execute(

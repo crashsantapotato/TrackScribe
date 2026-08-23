@@ -34,7 +34,7 @@ def add_velocity(
             "--settings-json",
             json.dumps(parameters),
         ]
-        services.run_command(STAGE, command)
+        services.run_command(STAGE, command, python_utf8=True)
         report = json.loads(diagnostics.read_text(encoding="utf-8"))
         metadata = {
             key: report[key]

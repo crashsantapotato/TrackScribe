@@ -44,7 +44,7 @@ def transcribe(
         for key in ("onset_threshold", "offset_threshold", "frame_threshold"):
             if key in parameters:
                 command.extend([f"--{key.replace('_', '-')}", str(parameters[key])])
-        services.run_command(stage, command)
+        services.run_command(stage, command, python_utf8=True)
         return StageOutcome(outputs={output_key: output}, command=command)
 
     stage_model = {
@@ -96,7 +96,7 @@ def add_guitar_velocity(
             "--chord-window-ms",
             str(parameters["chord_window_ms"]),
         ]
-        services.run_command(stage, command)
+        services.run_command(stage, command, python_utf8=True)
         return StageOutcome(outputs={output_key: output}, command=command)
 
     return services.executor.execute(

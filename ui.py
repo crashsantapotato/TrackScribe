@@ -8,6 +8,8 @@ import sys
 import traceback
 from pathlib import Path
 
+from trackscribe.process import build_python_utf8_env
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 UI_PYTHON = PROJECT_ROOT / ".venv-ui" / "Scripts" / "pythonw.exe"
@@ -43,6 +45,7 @@ def _bootstrap_ui_runtime() -> bool:
         [str(UI_PYTHON), str(Path(__file__).resolve()), *sys.argv[1:]],
         cwd=str(PROJECT_ROOT),
         close_fds=True,
+        env=build_python_utf8_env(),
     )
     return True
 

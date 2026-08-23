@@ -6,12 +6,26 @@ import logging
 import os
 import subprocess
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 from trackscribe.errors import ProcessError
 
 
 ProcessEvent = Callable[[str, str, dict[str, Any]], None]
+
+
+def build_python_utf8_env(
+    overrides: Mapping[str, str] | None = None,
+) -> dict[str, str]:
+    """Return an isolated inherited environment for a UTF-8 Python child."""
+
+    env = os.environ.copy()
+    if overrides:
+        env.update(overrides)
+    env["PYTHONUNBUFFERED"] = "1"
+    env["PYTHONUTF8"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
+    return env
 
 
 def run_process(
@@ -21,12 +35,13 @@ def run_process(
     cwd: Path,
     log_path: Path,
     emit: ProcessEvent,
+    python_utf8: bool = False,
 ) -> None:
     """Run one command, stream combined output, and persist a complete stage log."""
 
     normalized = [str(part) for part in command]
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    env = os.environ.copy()
+    env = build_python_utf8_env() if python_utf8 else os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
     logging.info("[%s] running %s", stage, subprocess.list2cmdline(normalized))
     with log_path.open("a", encoding="utf-8", errors="replace") as log_file:

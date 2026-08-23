@@ -60,7 +60,7 @@ def run(services: StageServices, master: Path) -> StageOutcome:
             ]
             if parameters.get("use_autocast"):
                 command.append("--use_autocast")
-            services.run_command(STAGE, command)
+            services.run_command(STAGE, command, python_utf8=True)
             outputs: dict[str, Path] = {}
             for stem in CORE_STEMS:
                 source = _find_output(raw_dir, stem)

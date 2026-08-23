@@ -58,7 +58,7 @@ def transcribe(services: StageServices, audio: Path) -> StageOutcome:
             command.append("--amp")
         if parameters.get("checkpoint"):
             command.extend(["--checkpoint", str(checkpoint)])
-        services.run_command(STAGE, command, cwd=repo_dir)
+        services.run_command(STAGE, command, cwd=repo_dir, python_utf8=True)
         metadata = {"checkpoint": str(checkpoint)}
         if checkpoint.is_file():
             metadata["checkpoint_signature"] = file_signature(checkpoint)

@@ -21,7 +21,12 @@ class StageServices:
     repository_root: Path
 
     def run_command(
-        self, stage: str, command: list[str], *, cwd: Path | None = None
+        self,
+        stage: str,
+        command: list[str],
+        *,
+        cwd: Path | None = None,
+        python_utf8: bool = False,
     ) -> None:
         """Run one isolated command with the current stage's log and callbacks."""
 
@@ -33,6 +38,7 @@ class StageServices:
             emit=lambda status, message, details: self.executor.emit(
                 status, message, details
             ),
+            python_utf8=python_utf8,
         )
 
     def worker(self, name: str) -> Path:
