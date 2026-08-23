@@ -27,6 +27,42 @@ from trackscribe.ui.helpers import DEFAULT_OUTPUT_ROOT, discover_artifacts  # no
 from trackscribe.ui.main_window import MainWindow  # noqa: E402
 
 
+def assert_same_path(
+    testcase: unittest.TestCase,
+    actual: str | os.PathLike[str],
+    expected: str | os.PathLike[str],
+) -> None:
+    """Assert filesystem equivalence without assuming aliases are lexical matches."""
+
+    actual_path = Path(os.path.abspath(actual))
+    expected_path = Path(os.path.abspath(expected))
+    message = f"{actual_path!s} and {expected_path!s} do not refer to the same path"
+    if actual_path.exists() and expected_path.exists():
+        testcase.assertTrue(os.path.samefile(actual_path, expected_path), message)
+        return
+
+    def existing_ancestor(path: Path) -> tuple[Path, tuple[str, ...]]:
+        suffix: list[str] = []
+        while not path.exists() and path != path.parent:
+            suffix.append(path.name)
+            path = path.parent
+        return path, tuple(reversed(suffix))
+
+    actual_ancestor, actual_suffix = existing_ancestor(actual_path)
+    expected_ancestor, expected_suffix = existing_ancestor(expected_path)
+    testcase.assertTrue(
+        actual_ancestor.exists()
+        and expected_ancestor.exists()
+        and os.path.samefile(actual_ancestor, expected_ancestor),
+        message,
+    )
+    testcase.assertEqual(
+        tuple(os.path.normcase(part) for part in actual_suffix),
+        tuple(os.path.normcase(part) for part in expected_suffix),
+        message,
+    )
+
+
 class MainWindowSmokeTest(unittest.TestCase):
     """Build the complete window without displaying it or touching user settings."""
 
@@ -130,15 +166,15 @@ class MainWindowSmokeTest(unittest.TestCase):
             custom = root / "custom"
             window.project_name_edit.setText("first")
             window.output_root_edit.setText(str(custom))
-            self.assertEqual(
-                Path(window.resolved_output_label.text()), custom / "first"
+            assert_same_path(
+                self, Path(window.resolved_output_label.text()), custom / "first"
             )
             window.project_name_edit.setFocus()
             window.project_name_edit.selectAll()
             QTest.keyClicks(window.project_name_edit, "second")
             self.app.processEvents()
-            self.assertEqual(
-                Path(window.resolved_output_label.text()), custom / "second"
+            assert_same_path(
+                self, Path(window.resolved_output_label.text()), custom / "second"
             )
             window.close()
 
@@ -156,7 +192,7 @@ class MainWindowSmokeTest(unittest.TestCase):
             ) as dialog:
                 window._browse_output_root()
             dialog.assert_called_once()
-            self.assertEqual(Path(window.output_root_edit.text()), chosen)
+            assert_same_path(self, Path(window.output_root_edit.text()), chosen)
             window.close()
 
     def test_existing_custom_project_enables_exact_project_folder(self) -> None:
@@ -178,7 +214,8 @@ class MainWindowSmokeTest(unittest.TestCase):
             self.assertTrue(window.project_folder_button.isEnabled())
             with patch.object(window, "_open_path") as open_path:
                 window.project_folder_button.click()
-            open_path.assert_called_once_with(project)
+            open_path.assert_called_once()
+            assert_same_path(self, open_path.call_args.args[0], project)
             window.close()
 
     def test_saved_transkun_is_restored(self) -> None:
@@ -338,7 +375,7 @@ class MainWindowSmokeTest(unittest.TestCase):
 
             self.assertFalse(window._running, "Mocked QThread job timed out")
             self.assertNotEqual(observed["thread_id"], main_thread_id)
-            self.assertEqual(observed["output_dir"], project)
+            assert_same_path(self, observed["output_dir"], project)
             self.assertEqual(window.status_label.text(), "Completed")
             self.assertTrue(window.midi_folder_button.isEnabled())
             self.assertTrue(window.transcribe_button.isEnabled())
