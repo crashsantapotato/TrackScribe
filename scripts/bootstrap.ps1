@@ -8,12 +8,14 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
 . (Join-Path $PSScriptRoot "bootstrap_hash.ps1")
+. (Join-Path $PSScriptRoot "bootstrap_environment.ps1")
 
 $TrackScribeRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $BootstrapRoot = Join-Path $TrackScribeRoot ".bootstrap"
 $UvPath = Join-Path $BootstrapRoot "uv.exe"
 $ManagedPythonRoot = Join-Path $BootstrapRoot "python"
 $StatePath = Join-Path $BootstrapRoot "setup-state.json"
+$VersionCheckerPath = Join-Path $PSScriptRoot "bootstrap_versions.py"
 $UvVersion = "0.12.5"
 $PythonVersion = "3.12.14"
 $AmtRevision = "c210559a481ed22fc72af2f54e020250f9aabae1"
@@ -32,12 +34,13 @@ $EnvironmentDefinitions = @(
         Name = "Core environment"
         Directory = ".venv"
         Requirements = "requirements/core.txt"
-        Imports = "import audio_separator, adtof_pytorch, librosa, torch"
+        Imports = @("audio_separator", "adtof_pytorch", "librosa", "torch")
         Torch = $true
         Versions = [ordered]@{
             "audio-separator" = "0.44.5"
             "adtof-pytorch" = "0.1.0"
             "torch" = "2.13.0+cu130"
+            "torchvision" = "0.28.0"
             "onnxruntime-gpu" = "1.29.0"
         }
     },
@@ -45,7 +48,7 @@ $EnvironmentDefinitions = @(
         Name = "UI environment"
         Directory = ".venv-ui"
         Requirements = "requirements/ui.txt"
-        Imports = "import PySide6"
+        Imports = @("PySide6")
         Torch = $false
         Versions = [ordered]@{
             "PySide6" = "6.11.2"
@@ -55,7 +58,7 @@ $EnvironmentDefinitions = @(
         Name = "Bass environment"
         Directory = ".venv-bass"
         Requirements = "requirements/bass.txt"
-        Imports = "import hf_midi_transcription, torch"
+        Imports = @("hf_midi_transcription", "torch")
         Torch = $true
         Versions = [ordered]@{
             "hf-midi-transcription" = "0.1.1"
@@ -67,7 +70,7 @@ $EnvironmentDefinitions = @(
         Name = "Piano environment"
         Directory = ".venv-piano"
         Requirements = "requirements/piano.txt"
-        Imports = "import transkun, torch"
+        Imports = @("transkun", "torch")
         Torch = $true
         Versions = [ordered]@{
             "transkun" = "2.0.1"
@@ -79,7 +82,7 @@ $EnvironmentDefinitions = @(
         Name = "Mega environment"
         Directory = ".venv-mega"
         Requirements = "requirements/mega.txt"
-        Imports = "import bs_roformer, torch"
+        Imports = @("bs_roformer", "torch")
         Torch = $true
         Versions = [ordered]@{
             "bs-roformer-infer" = "0.1.6"
@@ -90,7 +93,7 @@ $EnvironmentDefinitions = @(
         Name = "AMT environment"
         Directory = ".venv-amt"
         Requirements = "requirements/amt.txt"
-        Imports = "import torch, torchaudio, mido, soundfile"
+        Imports = @("torch", "torchaudio", "mido", "soundfile")
         Torch = $true
         Versions = [ordered]@{
             "torch" = "2.13.0+cu130"
@@ -125,18 +128,14 @@ function Get-EnvironmentPython {
     return Join-Path $TrackScribeRoot "$Directory\Scripts\python.exe"
 }
 
-function Test-Environment {
+function Get-EnvironmentSelfCheck {
     param([Parameter(Mandatory = $true)]$Definition)
     $python = Get-EnvironmentPython $Definition.Directory
-    if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
-        return $false
-    }
-    $versionChecks = foreach ($entry in $Definition.Versions.GetEnumerator()) {
-        "assert metadata.version('$($entry.Key)') == '$($entry.Value)'"
-    }
-    $check = "import sys; from importlib import metadata; assert sys.version_info[:3] == (3, 12, 14); $($Definition.Imports); $($versionChecks -join '; ')"
-    & $python -c $check *> $null
-    return $LASTEXITCODE -eq 0
+    return Invoke-EnvironmentSelfCheck `
+        -PythonExecutable $python `
+        -CheckerPath $VersionCheckerPath `
+        -ExpectedPythonVersion $PythonVersion `
+        -Definition $Definition
 }
 
 function Test-EnvironmentRuntime {
@@ -266,10 +265,12 @@ function Ensure-Environment {
     $requirements = Join-Path $TrackScribeRoot $Definition.Requirements
     $requirementsHash = Get-RequirementsHash $Definition
     $previousHash = Get-StateRequirementsHash $PreviousState $Definition.Directory
-    $healthy = Test-Environment $Definition
+    $initialCheck = Get-EnvironmentSelfCheck $Definition
+    $healthy = $initialCheck.Success
     $definitionChanged = $null -ne $previousHash -and $previousHash -ne $requirementsHash
     if ($healthy -and -not $definitionChanged) {
         Write-Status "OK" $Definition.Name
+        Write-EnvironmentSelfCheckOutput $initialCheck
         return $requirementsHash
     }
     if (-not $healthy) {
@@ -293,10 +294,14 @@ function Ensure-Environment {
         "--index-strategy", "unsafe-best-match",
         "--strict"
     ) "$($Definition.Name) dependency sync"
-    if (-not (Test-Environment $Definition)) {
-        throw "$($Definition.Name) failed its Python/import self-check."
+    $finalCheck = Get-EnvironmentSelfCheck $Definition
+    if (-not $finalCheck.Success) {
+        Write-Status "ERROR" "Environment self-check failed: $($Definition.Name)"
+        Write-EnvironmentSelfCheckOutput $finalCheck
+        throw "$($Definition.Name) failed its Python/import self-check with exit code $($finalCheck.ExitCode)."
     }
     Write-Status "OK" $Definition.Name
+    Write-EnvironmentSelfCheckOutput $finalCheck
     return $requirementsHash
 }
 

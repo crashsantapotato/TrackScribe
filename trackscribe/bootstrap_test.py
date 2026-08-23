@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import os
 import subprocess
@@ -13,6 +14,7 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+VERSION_CHECKER = PROJECT_ROOT / "scripts" / "bootstrap_versions.py"
 
 
 class BootstrapContractTest(unittest.TestCase):
@@ -24,6 +26,8 @@ class BootstrapContractTest(unittest.TestCase):
             "run.bat",
             "scripts/bootstrap.ps1",
             "scripts/bootstrap_hash.ps1",
+            "scripts/bootstrap_environment.ps1",
+            "scripts/bootstrap_versions.py",
         ):
             with self.subTest(relative=relative):
                 self.assertTrue((PROJECT_ROOT / relative).is_file())
@@ -72,6 +76,85 @@ class BootstrapContractTest(unittest.TestCase):
         self.assertIn('"audio-separator" = "0.44.5"', content)
         self.assertIn('"PySide6" = "6.11.2"', content)
         self.assertIn('"torch" = "2.13.0+cu130"', content)
+        self.assertIn('"torchvision" = "0.28.0"', content)
+        self.assertIn("bootstrap_versions.py", content)
+        self.assertNotIn("assert metadata.version", content)
+
+    def test_torchaudio_base_pin_accepts_pep440_local_builds(self) -> None:
+        versions = self._load_version_checker()
+        for actual in (
+            "2.11.0",
+            "2.11.0+cu130",
+            "2.11.0+cu130.some_local_tag",
+        ):
+            with self.subTest(actual=actual):
+                self.assertEqual(
+                    versions.validate_distribution_version(
+                        "torchaudio", actual, "2.11.0"
+                    ),
+                    "base",
+                )
+
+    def test_torchaudio_base_pin_rejects_other_releases(self) -> None:
+        versions = self._load_version_checker()
+        for actual in (
+            "2.10.0+cu130",
+            "2.11.1+cu130",
+            "3.0.0",
+        ):
+            with self.subTest(actual=actual):
+                with self.assertRaises(versions.VersionValidationError):
+                    versions.validate_distribution_version(
+                        "torchaudio", actual, "2.11.0"
+                    )
+
+    def test_torch_family_policy_preserves_full_local_and_base_pins(self) -> None:
+        versions = self._load_version_checker()
+        self.assertEqual(
+            versions.validate_distribution_version(
+                "torchvision", "0.28.0+cu130", "0.28.0"
+            ),
+            "base",
+        )
+        self.assertEqual(
+            versions.validate_distribution_version(
+                "torch", "2.13.0+cu130", "2.13.0+cu130"
+            ),
+            "exact",
+        )
+        with self.assertRaises(versions.VersionValidationError):
+            versions.validate_distribution_version(
+                "torch", "2.13.0+cu128", "2.13.0+cu130"
+            )
+        with self.assertRaises(versions.VersionValidationError):
+            versions.validate_distribution_version(
+                "audio-separator", "0.44.6", "0.44.5"
+            )
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows PowerShell bootstrap test")
+    def test_environment_self_check_preserves_actionable_traceback(self) -> None:
+        python_version = ".".join(str(part) for part in sys.version_info[:3])
+        command = (
+            "$definition = [ordered]@{"
+            "Name = 'Regression environment'; "
+            "Imports = @('json'); "
+            "Versions = [ordered]@{'numpy' = '0.0.0'}"
+            "}; "
+            "$result = Invoke-EnvironmentSelfCheck "
+            f"-PythonExecutable {self._powershell_quote(sys.executable)} "
+            f"-CheckerPath {self._powershell_quote(VERSION_CHECKER)} "
+            f"-ExpectedPythonVersion {self._powershell_quote(python_version)} "
+            "-Definition $definition; "
+            "Write-Output $result.StdOut; Write-Output $result.StdErr; "
+            "if ($result.Success) { exit 9 } else { exit 0 }"
+        )
+        result = self._run_environment_command(command)
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 0, output)
+        self.assertIn("Environment self-check failed: Regression environment", output)
+        self.assertIn("Traceback (most recent call last):", output)
+        self.assertIn("numpy version mismatch", output)
+        self.assertIn("expected exact 0.0.0", output)
 
     @unittest.skipUnless(sys.platform == "win32", "Windows PowerShell bootstrap test")
     def test_dotnet_hash_helper_known_file_and_case_insensitive_expected(self) -> None:
@@ -220,6 +303,42 @@ class BootstrapContractTest(unittest.TestCase):
             timeout=30,
             check=False,
         )
+
+    def _run_environment_command(self, body: str) -> subprocess.CompletedProcess[str]:
+        helper = PROJECT_ROOT / "scripts" / "bootstrap_environment.ps1"
+        command = (
+            "$ErrorActionPreference = 'Stop'; "
+            f". {self._powershell_quote(helper)}; "
+            f"{body}"
+        )
+        return subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                command,
+            ],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+            check=False,
+        )
+
+    @staticmethod
+    def _load_version_checker():
+        specification = importlib.util.spec_from_file_location(
+            "trackscribe_bootstrap_versions", VERSION_CHECKER
+        )
+        if specification is None or specification.loader is None:
+            raise RuntimeError(f"Could not load {VERSION_CHECKER}")
+        module = importlib.util.module_from_spec(specification)
+        specification.loader.exec_module(module)
+        return module
 
 
 if __name__ == "__main__":
