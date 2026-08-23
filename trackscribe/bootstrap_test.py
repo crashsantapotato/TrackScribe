@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -251,10 +252,15 @@ class BootstrapContractTest(unittest.TestCase):
             compact_output = "".join(output.split())
             self.assertNotEqual(result.returncode, 0, output)
             self.assertIn("wrong artifact", output)
-            self.assertIn(str(sample), output)
+            self.assertIn("failed SHA-256 verification", output)
             self.assertIn(expected, compact_output)
             self.assertIn(actual, compact_output)
             self.assertFalse(sample.exists(), "A mismatched downloaded artifact must be removed")
+            diagnostic_path = self._extract_diagnostic_path(
+                r"Path:\s*(?P<path>.+?)\.\s*Expected:", output
+            )
+            sample.write_bytes(payload)
+            self.assertTrue(os.path.samefile(diagnostic_path, sample))
 
     @unittest.skipUnless(sys.platform == "win32", "Windows PowerShell bootstrap test")
     def test_dotnet_hash_helper_reports_missing_file(self) -> None:
@@ -266,7 +272,10 @@ class BootstrapContractTest(unittest.TestCase):
             output = result.stdout + result.stderr
             self.assertNotEqual(result.returncode, 0, output)
             self.assertIn("SHA-256 input file not found", output)
-            self.assertIn(str(missing), output)
+            diagnostic_path = self._extract_diagnostic_path(
+                r"SHA-256 input file not found:\s*(?P<path>[^\r\n]+)", output
+            )
+            self._assert_nonexistent_paths_equivalent(diagnostic_path, missing)
 
     def test_bootstrap_hashing_does_not_use_get_file_hash(self) -> None:
         scripts = "\n".join(
@@ -337,6 +346,39 @@ class BootstrapContractTest(unittest.TestCase):
     @staticmethod
     def _powershell_quote(value: str | Path) -> str:
         return "'" + str(value).replace("'", "''") + "'"
+
+    def _extract_diagnostic_path(self, pattern: str, output: str) -> Path:
+        """Extract a path from a PowerShell diagnostic without lexical assumptions."""
+
+        match = re.search(pattern, output)
+        self.assertIsNotNone(match, output)
+        assert match is not None
+        return Path(match.group("path").strip())
+
+    def _assert_nonexistent_paths_equivalent(
+        self, actual: Path, expected: Path
+    ) -> None:
+        """Compare missing paths using same-file ancestors and relative suffixes."""
+
+        actual_ancestor, actual_suffix = self._existing_ancestor(actual)
+        expected_ancestor, expected_suffix = self._existing_ancestor(expected)
+        self.assertTrue(actual_ancestor.exists(), actual_ancestor)
+        self.assertTrue(expected_ancestor.exists(), expected_ancestor)
+        self.assertTrue(os.path.samefile(actual_ancestor, expected_ancestor))
+        self.assertEqual(
+            tuple(os.path.normcase(part) for part in actual_suffix),
+            tuple(os.path.normcase(part) for part in expected_suffix),
+        )
+
+    @staticmethod
+    def _existing_ancestor(path: Path) -> tuple[Path, tuple[str, ...]]:
+        """Return the nearest existing ancestor and the missing relative suffix."""
+
+        suffix: list[str] = []
+        while not path.exists() and path != path.parent:
+            suffix.append(path.name)
+            path = path.parent
+        return path, tuple(reversed(suffix))
 
     def _run_hash_command(self, body: str) -> subprocess.CompletedProcess[str]:
         helper = PROJECT_ROOT / "scripts" / "bootstrap_hash.ps1"

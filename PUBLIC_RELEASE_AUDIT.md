@@ -2,21 +2,25 @@
 
 Audit date: 2026-08-23
 Scope: local TrackScribe source repository and optional ACE-Step/REAPER boundaries
-Final commit, remote, push, tag, and GitHub release: **not created**
+Runtime-tested public baseline: `cec2dbadf780daf8ce29510b784b68f948a03b4b`
+Public `main`: **published**
+`v0.1.0` tag and GitHub Release: **not created**
+Final release-preparation GitHub Actions result: **pending after push**
 
 ## Recommended release status
 
-# READY WITH DOCUMENTED RESTRICTIONS
+# READY WITH DOCUMENTED RESTRICTIONS — TAG GATED ON FINAL CI
 
 TrackScribe's own source tree is suitable for a public source release after the
-owner reviews the diff, license audit, and remaining release-machine checklist.
+owner reviews the final diff, license audit, and remaining release checklist,
+and the final GitHub Actions run is green.
 The complete ML workflow must **not** be described as unrestricted for
 commercial use because external ADTOF and pretrained Demucs assets have material
 restrictions. Mega53 model terms also remain unverified.
 
 ## Repository hygiene
 
-Initial state:
+Initial pre-publication audit state (historical):
 
 - Git branch: `main`.
 - Git remotes: none.
@@ -27,9 +31,9 @@ Initial state:
 
 Prepared release candidate:
 
-- Candidate files after intended additions/deletions: 112.
-- Clean public source size: under 0.5 MiB; the handoff report records the final
-  byte count after all audit text is written.
+- Candidate files after final source/test additions: 115.
+- Clean public source size remains under 0.5 MiB (approximately 0.45 MiB after
+  this documentation update).
 - Candidate is source/config/docs/tests only; `.git` is not part of the export.
 - Added production ignore rules, text/binary attributes, license/docs, lightweight
   CI, and a release hygiene checker.
@@ -99,11 +103,9 @@ identifiers do not become false positives.
 Older local commits contain non-sensitive developer paths in the now-deleted
 `bass_sensitive.py` and older revisions of README/config. Current operational
 source/config contains no required developer path; the bootstrap test retains
-two path strings only as negative assertions. Because this repository has no
-remote and is preparing its first public release, the owner should decide
-whether to publish a fresh/squashed public history after creating the final
-release commit. Rewriting history was deliberately not performed during this
-uncommitted audit.
+two path strings only as negative assertions. The existing history is now
+published on public `main`; no amend, rebase, squash, or force-push was used
+during final preparation.
 
 ## Portable configuration
 
@@ -143,30 +145,47 @@ Clean exported-tree bootstrap dry run: **passed**; all six environments, AMT,
 FFmpeg, and Mega53 were correctly reported as planned, and no file was created or
 downloaded.
 
-Not claimed:
+Full clean Windows acceptance from the published source baseline: **passed**.
 
-- a full multi-gigabyte clean install was not performed during this audit;
-- idempotent second setup on a fresh installation was not performed;
-- real Demucs/AMT inference was not run during release preparation.
+- First `setup.bat`: exit 0 in 405.54 seconds; all six environments healthy.
+- Mega53 checkpoint: 1,368,919,887 bytes with the pinned SHA-256 verified.
+- CUDA 13.0: healthy across all GPU environments on an NVIDIA RTX 4070 Ti SUPER.
+- FFmpeg 9.0 system integration and the PySide6 `run.bat` launch: verified.
+- Clean first-launch backend: Agnostic AMT; output root resolved to the clean
+  installation's `projects` directory.
+- Targeted real HF bass download/runtime: passed, including Unicode output under
+  the legacy Windows CP1251 scenario.
+- Full synthetic `preserve-harmony` + Agnostic AMT pipeline: all eight production
+  stages completed.
+- MP3 and every documented non-WAV decode smoke: passed.
+- Second `setup.bat`: exit 0 in 32.73 seconds; uv, managed Python, all six
+  environments, AMT source, Mega53 checkpoint, and FFmpeg were reused without
+  unnecessary large downloads.
+- Git remained clean after every setup/runtime/UI checkpoint.
 
-Those remain explicit owner/release-machine checklist items.
+This demonstrates setup reuse/idempotency on the acceptance machine; it is not a
+guarantee for every Windows host.
 
 ## Tests
 
-TrackScribe tests (no heavy ML inference):
+Final local release verification plus the separate clean runtime acceptance:
 
 | Suite | Result |
 | --- | --- |
-| Backend/unit | 73 run, 72 passed, 1 skipped |
-| Qt UI (offscreen) | 44 passed |
+| Backend/unit | 87 passed |
+| Qt UI (offscreen) | 45 passed |
 | Bridge/REAPER integration | 10 passed |
-| **TrackScribe total** | **127 run, 126 passed, 1 skipped** |
+| **TrackScribe total** | **142/142 passed** |
 
-The skipped backend test is the real FFmpeg container-decode integration because
-no working FFmpeg was installed at the audited root/system path. Command
-construction, all supported extension paths, failure handling, WAV fast path,
-and cache input-signature tests passed. The clean bootstrap is configured to
-download the pinned fallback.
+The clean acceptance had a working FFmpeg and the real container-decode
+integration passed. GitHub Actions may explicitly skip that one test when its
+lightweight runner has no FFmpeg; this is acceptable and is not a failure.
+
+The GitHub Actions backend run immediately before this final preparation had two
+CI-only Windows 8.3-path assertion failures and one explicit FFmpeg skip. The
+assertions now compare filesystem identity rather than lexical aliases without
+changing production bootstrap/hash code. This document does not claim the final
+workflow is green until GitHub Actions confirms the pushed preparation commit.
 
 Additional verification:
 
@@ -175,7 +194,8 @@ Additional verification:
 - PowerShell parser check: passed;
 - bootstrap dry run in clean export: passed;
 - release hygiene in current and clean export: passed;
-- Git whitespace check: required again after final owner review/commit.
+- Git whitespace check: passed before the final preparation commit and required
+  once more after any owner edits.
 
 Focused optional ACE-Step tests were run separately: **13 passed** across the
 adapter, GPU coordinator, model handoff, presentation, and exact UI wiring. They
@@ -265,7 +285,7 @@ setup.bat
 ui.py
 ```
 
-The completed audit snapshot contains 112 files and remains under 0.5 MiB. The
+The completed audit snapshot contains 115 files and remains under 0.5 MiB. The
 count/size should be regenerated after any owner edits because documentation
 changes alter the exact byte count.
 
@@ -286,12 +306,8 @@ needs clarification.
 ## Remaining owner actions
 
 1. Read and accept `LICENSE_AUDIT.md` and this verdict.
-2. Review `git status`, the full diff, and `git diff --check`.
-3. Decide whether the first public branch should squash/freshen the small local
-   history to omit historical developer paths.
-4. Perform the full clean Windows setup, second-run, UI launch, and synthetic
-   inference smoke if release confidence requires them.
-5. Optionally repeat the real REAPER smoke.
-6. Create the final commit only after review, suggested message:
-   `Prepare TrackScribe 0.1.0 for public release`.
-7. Create a remote/push/tag/release only after separate explicit approval.
+2. Review `git status`, the final diff, and `git diff --check`.
+3. Confirm the final GitHub Actions workflow is green; an explicit missing-FFmpeg
+   skip is acceptable.
+4. Optionally repeat the real REAPER GUI smoke on an installed/licensed REAPER.
+5. Create `v0.1.0` and a GitHub Release only after separate owner approval.

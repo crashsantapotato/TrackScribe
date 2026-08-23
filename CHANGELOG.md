@@ -19,3 +19,10 @@ All notable public changes are documented here.
   optional ACE-Step handoff; the ACE-Step-side UI/GPU adapter is not shipped.
 - Added public-source license, dependency notices, license audit, release hygiene,
   and lightweight CI preparation.
+- Added process-scoped UTF-8 handling for bootstrap and runtime Python workers on
+  legacy Windows code pages.
+- Made Windows bootstrap diagnostic-path tests portable across 8.3 short-path
+  aliases and canonical long paths without weakening SHA-256 assertions.
+- Verified the public source with a full clean Windows setup, real eight-stage
+  synthetic pipeline, non-WAV decoding, desktop launch, and a second idempotent
+  setup run.

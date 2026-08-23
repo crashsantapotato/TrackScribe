@@ -75,9 +75,12 @@ required for standalone TrackScribe setup.
 
 Setup installs local, root-relative components only. It is designed to be
 idempotent: subsequent runs reuse healthy environments and repair missing or
-changed components. Release preparation verified the structural bootstrap dry
-run, but did not perform a full clean installation or a second setup run in a
-fresh clean environment.
+changed components. A clean-install acceptance test on Windows verified this
+behavior from the public source: the first `setup.bat` run completed in 405.54
+seconds, and a second run completed in 32.73 seconds while reusing uv, managed
+Python, all six environments, the AMT source, Mega53 checkpoint, and FFmpeg.
+These timings describe that acceptance machine, not a guarantee for every
+Windows host.
 
 The bootstrap currently pins:
 
@@ -93,6 +96,12 @@ Setup downloads the large experimental Mega53 checkpoint. The `htdemucs_ft`, HF
 MIDI transcription, and Instrument-Agnostic AMT checkpoints are downloaded by
 their upstream tools on first use. ADTOF and Transkun weights arrive inside their
 pinned packages. None of these external binaries or weights is tracked by Git.
+
+The same clean Windows acceptance verified the PySide6 UI, CUDA 13.0 on an
+NVIDIA RTX 4070 Ti SUPER, a complete eight-stage `preserve-harmony` pipeline
+with Agnostic AMT, the real HF bass download/runtime path, MP3 input, and the
+documented non-WAV decode formats. See
+[PUBLIC_RELEASE_AUDIT.md](PUBLIC_RELEASE_AUDIT.md) for the scoped evidence.
 
 To inspect setup without changing or downloading anything:
 

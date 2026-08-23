@@ -77,6 +77,24 @@ invalid environment is repaired in its own directory.
 
 Do not manually install one backend's packages into another backend environment.
 
+## Verified clean-install acceptance
+
+TrackScribe 0.1.0 was exercised from a fresh public-source clone on Windows.
+The first `setup.bat` run completed successfully in 405.54 seconds and created
+all six healthy environments. A second run completed in 32.73 seconds and
+reused uv, managed Python, all environments, the pinned AMT source, Mega53
+checkpoint, and FFmpeg without unnecessary large downloads.
+
+That acceptance also verified CUDA 13.0 on an NVIDIA RTX 4070 Ti SUPER,
+`run.bat` and the PySide6 UI, the clean first-launch Agnostic AMT default, a
+complete synthetic WAV pipeline, real HF bass model download/inference, MP3
+decoding, and the supported non-WAV container smoke tests. Generated assets
+remained ignored and the source tree stayed clean at every checkpoint.
+
+This is scoped evidence from one clean Windows acceptance machine. It does not
+guarantee identical setup duration, driver compatibility, or idempotency on
+every Windows system.
+
 ## Common failures
 
 ### PowerShell policy
