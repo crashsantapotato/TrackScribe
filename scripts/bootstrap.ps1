@@ -7,6 +7,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
+. (Join-Path $PSScriptRoot "bootstrap_hash.ps1")
+
 $TrackScribeRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $BootstrapRoot = Join-Path $TrackScribeRoot ".bootstrap"
 $UvPath = Join-Path $BootstrapRoot "uv.exe"
@@ -118,19 +120,6 @@ function Invoke-Checked {
     }
 }
 
-function Assert-FileSha256 {
-    param(
-        [Parameter(Mandatory = $true)][string]$Path,
-        [Parameter(Mandatory = $true)][string]$Expected,
-        [Parameter(Mandatory = $true)][string]$Description
-    )
-    $actual = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($actual -ne $Expected.ToLowerInvariant()) {
-        Remove-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
-        throw "$Description failed SHA-256 verification."
-    }
-}
-
 function Get-EnvironmentPython {
     param([Parameter(Mandatory = $true)][string]$Directory)
     return Join-Path $TrackScribeRoot "$Directory\Scripts\python.exe"
@@ -166,7 +155,7 @@ function Get-RequirementsHash {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Missing environment definition: $path"
     }
-    return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+    return Get-Sha256Hex -Path $path
 }
 
 function Read-SetupState {
