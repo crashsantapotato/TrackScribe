@@ -78,6 +78,7 @@ class BootstrapContractTest(unittest.TestCase):
         self.assertIn('"torch" = "2.13.0+cu130"', content)
         self.assertIn('"torchvision" = "0.28.0"', content)
         self.assertIn("bootstrap_versions.py", content)
+        self.assertIn("Invoke-PythonUtf8Checked $megaPython", content)
         self.assertNotIn("assert metadata.version", content)
 
     def test_torchaudio_base_pin_accepts_pep440_local_builds(self) -> None:
@@ -155,6 +156,64 @@ class BootstrapContractTest(unittest.TestCase):
         self.assertIn("Traceback (most recent call last):", output)
         self.assertIn("numpy version mismatch", output)
         self.assertIn("expected exact 0.0.0", output)
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows PowerShell bootstrap test")
+    def test_python_utf8_launcher_overrides_hostile_legacy_encoding(self) -> None:
+        code = (
+            "import sys; "
+            "print('ENCODING=' + sys.stdout.encoding); "
+            "print('TrackScribe ' + chr(0x1f4e6) + ' UTF-8 test')"
+        )
+        hostile_environment = os.environ.copy()
+        hostile_environment["PYTHONUTF8"] = "0"
+        hostile_environment["PYTHONIOENCODING"] = "cp1251"
+        baseline = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=PROJECT_ROOT,
+            env=hostile_environment,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+            check=False,
+        )
+        self.assertNotEqual(baseline.returncode, 0)
+        self.assertIn("UnicodeEncodeError", baseline.stderr)
+
+        command = (
+            "$arguments = @('-c', %s); "
+            "Invoke-PythonUtf8Checked -Executable %s -Arguments $arguments "
+            "-Description 'UTF-8 regression'; "
+            "Write-Output ('RESTORED=' + $env:PYTHONUTF8 + '|' + "
+            "$env:PYTHONIOENCODING)"
+            % (self._powershell_quote(code), self._powershell_quote(sys.executable))
+        )
+        result = self._run_environment_command(command, environment=hostile_environment)
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 0, output)
+        self.assertIn("ENCODING=utf-8", output)
+        self.assertIn("TrackScribe", output)
+        self.assertIn("UTF-8 test", output)
+        self.assertNotIn("UnicodeEncodeError", output)
+        self.assertIn("RESTORED=0|cp1251", output)
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows PowerShell bootstrap test")
+    def test_python_utf8_launcher_preserves_nonzero_failure(self) -> None:
+        code = "import sys; sys.stderr.write('UTF-8 failure detail\\n'); sys.exit(7)"
+        command = (
+            "$arguments = @('-c', %s); try { "
+            "Invoke-PythonUtf8Checked -Executable %s -Arguments $arguments "
+            "-Description 'UTF-8 failure regression'; exit 9 "
+            "} catch { Write-Output $_.Exception.Message; "
+            "if ($_.Exception.Message -match 'exit code 7') { exit 0 } else { exit 8 } }"
+            % (self._powershell_quote(code), self._powershell_quote(sys.executable))
+        )
+        result = self._run_environment_command(command)
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 0, output)
+        self.assertIn("UTF-8 failure detail", output)
+        self.assertIn("UTF-8 failure regression failed with exit code 7", output)
 
     @unittest.skipUnless(sys.platform == "win32", "Windows PowerShell bootstrap test")
     def test_dotnet_hash_helper_known_file_and_case_insensitive_expected(self) -> None:
@@ -304,7 +363,12 @@ class BootstrapContractTest(unittest.TestCase):
             check=False,
         )
 
-    def _run_environment_command(self, body: str) -> subprocess.CompletedProcess[str]:
+    def _run_environment_command(
+        self,
+        body: str,
+        *,
+        environment: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         helper = PROJECT_ROOT / "scripts" / "bootstrap_environment.ps1"
         command = (
             "$ErrorActionPreference = 'Stop'; "
@@ -321,6 +385,7 @@ class BootstrapContractTest(unittest.TestCase):
                 command,
             ],
             cwd=PROJECT_ROOT,
+            env=environment,
             capture_output=True,
             text=True,
             encoding="utf-8",

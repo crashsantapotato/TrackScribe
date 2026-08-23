@@ -65,6 +65,41 @@ function Invoke-EnvironmentSelfCheck {
     }
 }
 
+function Invoke-PythonUtf8Checked {
+    param(
+        [Parameter(Mandatory = $true)][string]$Executable,
+        [Parameter(Mandatory = $true)][string[]]$Arguments,
+        [Parameter(Mandatory = $true)][string]$Description
+    )
+
+    $previousPythonUtf8 = [Environment]::GetEnvironmentVariable("PYTHONUTF8", "Process")
+    $previousPythonIoEncoding = [Environment]::GetEnvironmentVariable(
+        "PYTHONIOENCODING",
+        "Process"
+    )
+    try {
+        [Environment]::SetEnvironmentVariable("PYTHONUTF8", "1", "Process")
+        [Environment]::SetEnvironmentVariable("PYTHONIOENCODING", "utf-8", "Process")
+        & $Executable @Arguments | Out-Host
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -ne 0) {
+            throw "$Description failed with exit code $exitCode."
+        }
+    }
+    finally {
+        [Environment]::SetEnvironmentVariable(
+            "PYTHONUTF8",
+            $previousPythonUtf8,
+            "Process"
+        )
+        [Environment]::SetEnvironmentVariable(
+            "PYTHONIOENCODING",
+            $previousPythonIoEncoding,
+            "Process"
+        )
+    }
+}
+
 function Write-EnvironmentSelfCheckOutput {
     param([Parameter(Mandatory = $true)]$Result)
 

@@ -408,7 +408,7 @@ function Ensure-Models {
     if (-not (Test-Path -LiteralPath $megaCheckpoint -PathType Leaf)) {
         $megaPython = Get-EnvironmentPython ".venv-mega"
         Write-Status "GET" "Downloading official Mega53 checkpoint (large download)"
-        Invoke-Checked $megaPython @(
+        Invoke-PythonUtf8Checked $megaPython @(
             "-m", "bs_roformer.download",
             "--model", $MegaModelSlug,
             "--output-dir", $megaModels,
