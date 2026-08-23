@@ -1,0 +1,63 @@
+# Python bytecode and tool caches
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.cache/
+cache/
+.work/
+*.tmp
+*.temp
+*.bak
+/.bootstrap/
+build/
+dist/
+*.egg-info/
+
+# Existing isolated runtimes
+.venv/
+.venv-*/
+venv/
+env/
+
+# Generated projects, logs, and media
+projects/
+logs/
+*.log
+*.wav
+*.wave
+*.mp3
+*.flac
+*.ogg
+*.m4a
+*.aac
+*.mid
+*.midi
+
+# Models and checkpoints
+checkpoints/
+models/
+*.ckpt
+*.pth
+*.pt
+*.onnx
+*.safetensors
+
+# Machine-local portable config overrides and downloaded tools
+config/trackscribe.local.json
+tools/ffmpeg/
+# The AMT checkout is an external dependency with its own repository and assets
+tools/instrument-agnostic-amt/
+
+# Local editor and OS files
+.idea/
+.vscode/
+.vs/
+*.user
+*.suo
+.DS_Store
+Thumbs.db

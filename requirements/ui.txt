@@ -1,0 +1,7 @@
+# Exact versions exported from the verified TrackScribe environment on 2026-08-23.
+# Environment: .venv-ui, CPython 3.12.14.
+pip==25.0.1
+pyside6==6.11.2
+pyside6-addons==6.11.2
+pyside6-essentials==6.11.2
+shiboken6==6.11.2

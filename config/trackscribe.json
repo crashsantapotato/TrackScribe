@@ -1,0 +1,160 @@
+{
+  "venvs": {
+    "main": "../.venv",
+    "bass": "../.venv-bass",
+    "piano": "../.venv-piano",
+    "amt": "../.venv-amt",
+    "mega": "../.venv-mega"
+  },
+  "models": {
+    "core": {
+      "name": "htdemucs_ft.yaml",
+      "model_dir": "../models/audio-separator"
+    },
+    "adtof": {
+      "name": "ADTOF PyTorch frame RNN",
+      "weights": "../.venv/Lib/site-packages/adtof_pytorch/data/adtof_frame_rnn_pytorch_weights.pth"
+    },
+    "hf": {
+      "name": "xavriley/midi-transcription-models",
+      "model_id": "xavriley/midi-transcription-models",
+      "checkpoint_source": "upstream-auto",
+      "bass_checkpoint": "filobass_20000_iterations.pth",
+      "guitar_checkpoint": "guitar-gaps.pth"
+    },
+    "transkun": {
+      "name": "Transkun 2.0",
+      "weights": "../.venv-piano/Lib/site-packages/transkun/pretrained/2.0.pt",
+      "config": "../.venv-piano/Lib/site-packages/transkun/pretrained/2.0.conf"
+    },
+    "mega53": {
+      "name": "MVSep Mega 53 Stems by ZFTurbo",
+      "checkpoint": "../models/mega53/roformer-model-bs-roformer-mvsep-mega-53-stems/mvsep_mega_model_bs_roformer_53_stems_v1.ckpt",
+      "config": "../mega53_fixed.yaml"
+    }
+  },
+  "stages": {
+    "core_separation": {
+      "output_format": "WAV",
+      "sample_rate": 44100,
+      "shifts": 2,
+      "overlap": 0.25,
+      "use_autocast": false
+    },
+    "drums_transcription": {
+      "device": "cuda",
+      "thresholds": null
+    },
+    "drums_velocity": {
+      "min_velocity": 35,
+      "max_velocity": 127,
+      "gamma": 0.75
+    },
+    "bass_transcription": {
+      "device": "cuda",
+      "batch_size": 8,
+      "onset_threshold": 0.12,
+      "offset_threshold": 0.18,
+      "frame_threshold": 0.04
+    },
+    "mega53_separation": {
+      "model_type": "bs_roformer",
+      "device": "cuda",
+      "backend": "torch",
+      "output_format": "wav_float32",
+      "expected_stems": 53
+    },
+    "mega53_analysis": {
+      "keep_relative_db": -18.0,
+      "review_relative_db": -28.0,
+      "keep_active_ratio": 0.02,
+      "review_active_ratio": 0.005,
+      "keep_p95_dbfs": -45.0,
+      "review_p95_dbfs": -55.0,
+      "transient_review_relative_db": -24.0,
+      "transient_review_onsets_per_s": 0.08,
+      "transient_review_peak_dbfs": -30.0
+    },
+    "mega53_selection": {
+      "transcribe_statuses": ["KEEP", "REVIEW"]
+    },
+    "guitar_transcription": {
+      "device": "cuda",
+      "batch_size": 8
+    },
+    "guitar_velocity": {
+      "min_velocity": 42,
+      "max_velocity": 122,
+      "gamma": 0.8,
+      "chord_window_ms": 30.0
+    },
+    "harmony_transcription": {
+      "enabled": true,
+      "backend": "transkun",
+      "device": "cuda",
+      "segment_size": null,
+      "segment_hop_size": null
+    },
+    "harmony_cleanup": {
+      "enabled": true,
+      "mode": "conservative",
+      "min_note_duration_ms": 35,
+      "merge_same_pitch_gap_ms": 30,
+      "chord_window_ms": 40,
+      "audio_validation": true,
+      "pitch_support_threshold": 0.08,
+      "neighbor_support_threshold": 0.08,
+      "chord_pitch_support_threshold": 0.03,
+      "chord_neighbor_support_threshold": 0.04,
+      "onset_support_threshold": 0.18,
+      "onset_window_ms": 30,
+      "hop_length": 512,
+      "minimum_midi": 21,
+      "maximum_midi": 108
+    },
+    "harmony_amt_transcription": {
+      "enabled": true,
+      "repo_dir": "../tools/instrument-agnostic-amt",
+      "repo_revision": "c210559a481ed22fc72af2f54e020250f9aabae1",
+      "model_type": "other",
+      "checkpoint": null,
+      "checkpoint_filename": "best_model_other.pth",
+      "device": "cuda",
+      "amp": true,
+      "window_batch_size": 1,
+      "max_midi_melodic_instruments": 1
+    },
+    "harmony_amt_velocity": {
+      "enabled": true,
+      "algorithm_version": "pitch-aware-cqt-onset-v1",
+      "min_velocity": 45,
+      "max_velocity": 118,
+      "fallback_velocity": 100,
+      "gamma": 0.85,
+      "percentile_low": 10.0,
+      "percentile_high": 95.0,
+      "log_gain": 100.0,
+      "attack_weight": 0.5,
+      "sustain_weight": 0.3,
+      "onset_weight": 0.2,
+      "onset_pre_ms": 20.0,
+      "onset_window_ms": 80.0,
+      "sustain_window_ms": 200.0,
+      "chord_window_ms": 35.0,
+      "chord_blend": 0.65,
+      "hop_length": 256,
+      "minimum_midi": 21,
+      "maximum_midi": 108,
+      "bins_per_octave": 36,
+      "neighbor_bins": 1,
+      "harmonic_weights": [1.0, 0.65, 0.45],
+      "silence_rms_threshold": 0.00001,
+      "minimum_dynamic_spread": 0.00001
+    },
+    "transkun": {
+      "device": "cuda",
+      "segment_size": null,
+      "segment_hop_size": null
+    }
+  }
+}

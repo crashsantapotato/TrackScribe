@@ -1,0 +1,2 @@
+# Backward-compatible entry point for the isolated UI development environment.
+-r requirements/ui.txt
